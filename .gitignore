@@ -1,0 +1,43 @@
+# --- DEPENDÊNCIAS ---
+node_modules/
+jspm_packages/
+.pnp
+.pnp.js
+
+# --- BUILD E SAÍDA ---
+dist/
+build/
+out/
+.next/
+.svelte-kit/
+bin/
+obj/
+
+# --- LOGS ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- VARIÁVEIS DE AMBIENTE (SENSÍVEL!) ---
+.env
+
+# --- TESTES E COBERTURA ---
+coverage/
+.nyc_output/
+
+# --- EDITOR E IDE ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- SISTEMA OPERACIONAL ---
+.DS_Store
+Thumbs.db
+desktop.ini
