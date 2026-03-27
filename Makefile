@@ -108,6 +108,30 @@ api-shell: ## Opens shell inside the API container
 install: ## Installs project dependencies (requirements.txt)
 	pip install -r requirements.txt
 
+.PHONY: install-dev
+install-dev: ## Installs dev dependencies (lint, test, security)
+	pip install -r requirements-dev.txt
+
+# ── Lint & Test ───────────────────────────────────────────────────────────────
+
+.PHONY: lint
+lint: ## Runs ruff linter and format check
+	ruff check .
+	ruff format --check .
+
+.PHONY: lint-fix
+lint-fix: ## Runs ruff linter and formatter with auto-fix
+	ruff check --fix .
+	ruff format .
+
+.PHONY: test
+test: ## Runs unit tests with coverage
+	pytest tests/ -v --cov=src --cov-report=term
+
+.PHONY: security
+security: ## Runs bandit security analysis
+	bandit -r src/ -c pyproject.toml
+
 .PHONY: clean-py
 clean-py: ## Removes __pycache__ and .pyc files from the project
 	python -c "import shutil, pathlib; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__')]"
