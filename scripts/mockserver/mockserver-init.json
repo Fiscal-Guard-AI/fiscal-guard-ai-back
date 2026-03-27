@@ -1,0 +1,241 @@
+[
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/api-de-dados/contratos",
+      "queryStringParameters": {
+        "pagina": ["1"]
+      }
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"],
+        "X-Total-Count": ["2"]
+      },
+      "body": {
+        "type": "JSON",
+        "json": [
+          {
+            "id": 1001,
+            "numeroContratoFormatado": "00001/2024",
+            "objeto": "Aquisição de equipamentos de tecnologia da informação",
+            "valorInicial": 150000.00,
+            "valorAtual": 150000.00,
+            "dataInicio": "2024-01-15",
+            "dataFim": "2024-12-31",
+            "situacao": "Vigente",
+            "fornecedor": {
+              "cnpj": "12345678000190",
+              "nome": "EMPRESA EXEMPLO DE TI LTDA"
+            },
+            "orgao": {
+              "codigo": "26000",
+              "nome": "MINISTÉRIO DA EDUCAÇÃO",
+              "codigoSIAFI": "26000"
+            },
+            "modalidade": {
+              "codigo": 5,
+              "nome": "Pregão"
+            }
+          },
+          {
+            "id": 1002,
+            "numeroContratoFormatado": "00002/2024",
+            "objeto": "Prestação de serviços de limpeza e conservação",
+            "valorInicial": 480000.00,
+            "valorAtual": 480000.00,
+            "dataInicio": "2024-02-01",
+            "dataFim": "2025-01-31",
+            "situacao": "Vigente",
+            "fornecedor": {
+              "cnpj": "98765432000155",
+              "nome": "LIMPEZA FEDERAL SERVIÇOS LTDA"
+            },
+            "orgao": {
+              "codigo": "36000",
+              "nome": "MINISTÉRIO DA SAÚDE",
+              "codigoSIAFI": "36000"
+            },
+            "modalidade": {
+              "codigo": 5,
+              "nome": "Pregão"
+            }
+          }
+        ]
+      }
+    },
+    "times": { "unlimited": true }
+  },
+
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/api-de-dados/contratos",
+      "queryStringParameters": {
+        "pagina": ["2"]
+      }
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"],
+        "X-Total-Count": ["2"]
+      },
+      "body": {
+        "type": "JSON",
+        "json": []
+      }
+    },
+    "times": { "unlimited": true }
+  },
+
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/api-de-dados/despesas/por-orgao",
+      "queryStringParameters": {
+        "pagina": ["1"]
+      }
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"],
+        "X-Total-Count": ["1"]
+      },
+      "body": {
+        "type": "JSON",
+        "json": [
+          {
+            "orgao": {
+              "codigo": "26000",
+              "nome": "MINISTÉRIO DA EDUCAÇÃO"
+            },
+            "acao": {
+              "codigo": "0E36",
+              "nome": "Política Nacional de Assistência Estudantil"
+            },
+            "valorDotacaoAtual": 1200000000.00,
+            "valorEmpenhado": 980000000.00,
+            "valorLiquidado": 850000000.00,
+            "valorPago": 820000000.00,
+            "exercicio": 2024,
+            "mes": 6
+          }
+        ]
+      }
+    },
+    "times": { "unlimited": true }
+  },
+
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/api-de-dados/convenios",
+      "queryStringParameters": {
+        "pagina": ["1"]
+      }
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"],
+        "X-Total-Count": ["1"]
+      },
+      "body": {
+        "type": "JSON",
+        "json": [
+          {
+            "numero": "123456/2024",
+            "objeto": "Apoio ao programa municipal de educação básica",
+            "valorTotal": 500000.00,
+            "dataAssinatura": "2024-03-01",
+            "dataVigenciaIni": "2024-03-01",
+            "dataVigenciaFim": "2025-02-28",
+            "situacao": "Em Execução",
+            "convenente": {
+              "cnpj": "01234567000100",
+              "nome": "MUNICÍPIO DE EXEMPLO - SP"
+            },
+            "concedente": {
+              "codigo": "26000",
+              "nome": "MINISTÉRIO DA EDUCAÇÃO"
+            }
+          }
+        ]
+      }
+    },
+    "times": { "unlimited": true }
+  },
+
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/ords/siconfi/api/v1/relatorio_cotas"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "Content-Type": ["application/json"]
+      },
+      "body": {
+        "type": "JSON",
+        "json": {
+          "items": [
+            {
+              "an_exercicio": 2024,
+              "in_periodicidade": "B",
+              "nr_periodo": 3,
+              "co_tipo_demonstrativo": "RGF",
+              "no_entidade": "GOVERNO FEDERAL",
+              "co_esfera": "F",
+              "co_poder": "E",
+              "no_funcao": "Educação",
+              "vl_resultado": 25000000000.00
+            },
+            {
+              "an_exercicio": 2024,
+              "in_periodicidade": "B",
+              "nr_periodo": 3,
+              "co_tipo_demonstrativo": "RGF",
+              "no_entidade": "GOVERNO FEDERAL",
+              "co_esfera": "F",
+              "co_poder": "E",
+              "no_funcao": "Saúde",
+              "vl_resultado": 48000000000.00
+            }
+          ],
+          "count": 2,
+          "hasMore": false,
+          "limit": 100,
+          "offset": 0,
+          "links": []
+        }
+      }
+    },
+    "times": { "unlimited": true }
+  },
+
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/api-de-dados/rate-limit-test"
+    },
+    "httpResponse": {
+      "statusCode": 429,
+      "headers": {
+        "Content-Type": ["application/json"],
+        "Retry-After": ["1"]
+      },
+      "body": {
+        "type": "JSON",
+        "json": {
+          "message": "Too Many Requests — rate limit excedido",
+          "limite": "1 req/s (público)"
+        }
+      }
+    },
+    "times": { "unlimited": true }
+  }
+]
