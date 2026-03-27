@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # AWS / LocalStack
     aws_endpoint_url: str | None = None   # None = AWS real; URL = LocalStack
     aws_access_key_id: str = "test"
-    aws_secret_access_key: str = "test"
+    aws_secret_access_key: str = "test"  # noqa: S105
     aws_default_region: str = "us-east-1"
     s3_bucket_name: str = "fiscal-guard-data"
     sqs_queue_url: str = "http://localhost:4566/000000000000/fiscal-guard-events"
