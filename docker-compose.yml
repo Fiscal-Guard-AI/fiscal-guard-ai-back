@@ -1,0 +1,131 @@
+services:
+
+  # ─── Infraestrutura ────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: fiscal-guard-postgres
+    environment:
+      POSTGRES_DB: fiscal_guard
+      POSTGRES_USER: fiscal_guard
+      POSTGRES_PASSWORD: fiscal_guard
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - fiscal-guard
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fiscal_guard -d fiscal_guard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: fiscal-guard-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - fiscal-guard
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:3
+    container_name: fiscal-guard-localstack
+    environment:
+      SERVICES: sqs,s3
+      AWS_DEFAULT_REGION: us-east-1
+      LOCALSTACK_HOST: localstack
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - ./scripts/localstack:/etc/localstack/init/ready.d   # scripts de init (criar queue/bucket)
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - fiscal-guard
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health | grep -q '\"s3\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  flyway:
+    image: flyway/flyway:10-alpine
+    container_name: fiscal-guard-flyway
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/fiscal_guard
+      FLYWAY_USER: fiscal_guard
+      FLYWAY_PASSWORD: fiscal_guard
+      FLYWAY_SCHEMAS: public
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+    volumes:
+      - ./scripts/flyway:/flyway/sql
+    networks:
+      - fiscal-guard
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  mockserver:
+    image: mockserver/mockserver:5.15.0
+    container_name: fiscal-guard-mockserver
+    environment:
+      MOCKSERVER_INITIALIZATION_JSON_PATH: /config/mockserver-init.json
+      MOCKSERVER_WATCH_INITIALIZATION_JSON: "true"
+    ports:
+      - "1080:1080"
+    volumes:
+      - ./scripts/mockserver:/config
+    networks:
+      - fiscal-guard
+
+  api:
+    build:
+      context: .
+      dockerfile: scripts/docker/Dockerfile
+    container_name: fiscal-guard-api
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://fiscal_guard:fiscal_guard@postgres:5432/fiscal_guard
+      REDIS_URL: redis://redis:6379
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      S3_BUCKET_NAME: fiscal-guard-data
+      MOCKSERVER_URL: http://mockserver:1080
+    volumes:
+      - ./src:/app/src
+    networks:
+      - fiscal-guard
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+    profiles:
+      - app
+
+volumes:
+  postgres_data:
+  redis_data:
+  localstack_data:
+
+networks:
+  fiscal-guard:
+    driver: bridge
