@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-
 from src.infra.config.settings import Settings, get_settings
 
 router = APIRouter(tags=["Infra"])
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -12,6 +12,7 @@ class HealthResponse(BaseModel):
     redis_url: str
     aws_endpoint_url: str | None
     s3_bucket_name: str
+
 
 @router.get("/health", response_model=HealthResponse)
 def health(settings: Settings = Depends(get_settings)):

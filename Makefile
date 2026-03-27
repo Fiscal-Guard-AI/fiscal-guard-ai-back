@@ -116,21 +116,21 @@ install-dev: ## Installs dev dependencies (lint, test, security)
 
 .PHONY: lint
 lint: ## Runs ruff linter and format check
-	ruff check .
-	ruff format --check .
+	python -m ruff check .
+	python -m ruff format --check .
 
 .PHONY: lint-fix
 lint-fix: ## Runs ruff linter and formatter with auto-fix
-	ruff check --fix .
-	ruff format .
+	python -m ruff check --fix .
+	python -m ruff format .
 
 .PHONY: test
 test: ## Runs unit tests with coverage
-	pytest tests/ -v --cov=src --cov-report=term
+	python -m pytest tests/ -v --cov=src --cov-report=term
 
 .PHONY: security
 security: ## Runs bandit security analysis
-	bandit -r src/ -c pyproject.toml
+	python -m bandit -r src/ -c pyproject.toml
 
 .PHONY: clean-py
 clean-py: ## Removes __pycache__ and .pyc files from the project

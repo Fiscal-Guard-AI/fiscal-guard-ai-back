@@ -23,6 +23,7 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]
+"src/adapters/inbound/api/**/*.py" = ["B008"]  # Depends() in FastAPI is expected
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

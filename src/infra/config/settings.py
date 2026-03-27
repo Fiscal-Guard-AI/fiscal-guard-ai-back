@@ -3,15 +3,16 @@ from functools import lru_cache
 from pydantic import computed_field, model_validator
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
     # Banco de dados
     env: str = "local"
-    
-    postgres_user:     str = "fiscal_guard"
-    postgres_password: str = "fiscal_guard"
-    postgres_host:     str = "localhost"
-    postgres_port:     int = 5432
-    postgres_db:       str = "fiscal_guard"
+
+    postgres_user: str = "fiscal_guard"
+    postgres_password: str = "fiscal_guard"  # noqa: S105
+    postgres_host: str = "localhost"
+    postgres_port: int = 5432
+    postgres_db: str = "fiscal_guard"
 
     @computed_field
     @property
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
 
     # AWS / LocalStack
-    aws_endpoint_url: str | None = None   # None = AWS real; URL = LocalStack
+    aws_endpoint_url: str | None = None  # None = AWS real; URL = LocalStack
     aws_access_key_id: str = "test"
     aws_secret_access_key: str = "test"  # noqa: S105
     aws_default_region: str = "us-east-1"
@@ -44,6 +45,7 @@ class Settings(BaseSettings):
     class Config:
         case_sensitive = False
 
-@lru_cache          # singleton instance
+
+@lru_cache  # singleton instance
 def get_settings() -> Settings:
     return Settings()
