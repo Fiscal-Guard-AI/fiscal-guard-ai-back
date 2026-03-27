@@ -1,10 +1,10 @@
-# --- DEPENDÊNCIAS ---
+# --- DEPENDENCIES ---
 node_modules/
 jspm_packages/
 .pnp
 .pnp.js
 
-# --- BUILD E SAÍDA ---
+# --- BUILD AND OUTPUT ---
 dist/
 build/
 out/
@@ -20,14 +20,45 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# --- VARIÁVEIS DE AMBIENTE (SENSÍVEL!) ---
+# --- PYTHON ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+eggs/
+.eggs/
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Mypy / type checkers
+.mypy_cache/
+.dmypy.json
+.pytype/
+.ruff_cache/
+
+# --- ENVIRONMENT VARIABLES (SENSITIVE!) ---
 .env
 
-# --- TESTES E COBERTURA ---
+# --- TESTS AND COVERAGE ---
 coverage/
 .nyc_output/
 
-# --- EDITOR E IDE ---
+# --- EDITOR AND IDE ---
 .vscode/*
 !.vscode/extensions.json
 .idea/
@@ -37,7 +68,7 @@ coverage/
 *.sln
 *.sw?
 
-# --- SISTEMA OPERACIONAL ---
+# --- OPERATING SYSTEM ---
 .DS_Store
 Thumbs.db
 desktop.ini
