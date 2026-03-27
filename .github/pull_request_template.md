@@ -19,8 +19,19 @@
 2.
 3.
 
-## Checklist
+## Checklist antes de submeter
 
+Execute os comandos abaixo e confirme que todos passaram:
+
+```bash
+make lint        # Ruff linter + format check
+make test        # Testes unitários com cobertura
+make security    # Análise de segurança (Bandit)
+```
+
+- [ ] `make lint` passou sem erros
+- [ ] `make test` passou sem falhas
+- [ ] `make security` passou sem alertas críticos
 - [ ] Código segue os padrões do projeto (Clean Architecture, naming conventions)
 - [ ] Testes adicionados/atualizados para cobrir a mudança
 - [ ] Sem secrets, credenciais ou dados sensíveis no código
