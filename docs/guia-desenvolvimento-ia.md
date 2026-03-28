@@ -28,7 +28,7 @@ flowchart TD
         Skills --> Implement
         Implement --> MarkProgress["Marcar progresso<br/>no todo.md"]
         MarkProgress -->|proxima tarefa| Implement
-        MarkProgress -->|tudo [x]| CodeReview
+        MarkProgress -->|"tudo [x]"| CodeReview
     end
 
     subgraph REVIEW ["3 — Revisao"]
