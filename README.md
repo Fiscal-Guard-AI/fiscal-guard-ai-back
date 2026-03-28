@@ -45,7 +45,7 @@ O serviço é composto por 3 processos principais:
 |-----------|-----------|
 | [Visão Geral da Solução](docs/visao-geral-solucao.md) | Arquitetura, fluxos, estrutura de diretórios e desafios técnicos |
 | [Exemplos - Clean Architecture](docs/exemplos.md) | Exemplos de código seguindo Clean Architecture em Python |
-| [Guia de desenvolvimento com IA](docs/guia-desenvolvimento-ia) | Guia de Desenvolvimento com IA |
+| [Guia de desenvolvimento com IA](docs/guia-desenvolvimento-ia.md) | Guia de Desenvolvimento com IA |
 
 ## Open Source and Community
 
