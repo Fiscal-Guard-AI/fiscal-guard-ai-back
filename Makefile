@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #  Fiscal Guard AI — Makefile
-#  Requirements: Docker, Docker Compose v2, Python 3.11+
+#  Requirements: Docker, Docker Compose v2, Python 3.13+
 #
 #  Quick usage:
 #    make setup      → brings up infra and applies migrations

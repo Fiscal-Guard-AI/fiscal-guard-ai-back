@@ -20,7 +20,7 @@ O serviço é composto por 3 processos principais:
 
 | Tecnologia | Finalidade |
 |-----------|-----------|
-| **Python 3.11+** | Linguagem principal |
+| **Python 3.13+** | Linguagem principal |
 | **FastAPI** | API REST com documentação Swagger |
 | **PostgreSQL** | Banco de dados relacional |
 | **Redis** | Cache distribuído e controle de rate limit |
@@ -30,7 +30,7 @@ O serviço é composto por 3 processos principais:
 
 ## Pré-requisitos
 
-- Python 3.11+
+- Python 3.13+
 - Docker e Docker Compose
   - Redis
   - Localstack (SQS, S3)
@@ -45,6 +45,7 @@ O serviço é composto por 3 processos principais:
 |-----------|-----------|
 | [Visão Geral da Solução](docs/visao-geral-solucao.md) | Arquitetura, fluxos, estrutura de diretórios e desafios técnicos |
 | [Exemplos - Clean Architecture](docs/exemplos.md) | Exemplos de código seguindo Clean Architecture em Python |
+| [Guia de desenvolvimento com IA](docs/guia-desenvolvimento-ia) | Guia de Desenvolvimento com IA |
 
 ## Open Source and Community
 
