@@ -4,11 +4,61 @@ Este guia documenta o workflow de desenvolvimento do projeto usando Claude Code 
 
 ## Visao Geral do Workflow
 
-```
-Spec (definicao) --> Aprovacao --> Batch (implementacao) --> Code Review --> Done
-```
-
 O desenvolvimento segue um ciclo disciplinado: nada e implementado sem uma spec aprovada. Cada spec representa no maximo 1 dia de trabalho.
+
+```mermaid
+flowchart TD
+    Start([Nova Feature / Bug]) --> NewSpec
+
+    subgraph SPEC ["1 — Definicao"]
+        NewSpec["/new-spec nome"] --> Draft["Spec criada<br/>status: draft"]
+        Draft --> Discuss["Discutir design<br/>com o agente"]
+        Discuss -->|ajustes| Draft
+        Discuss -->|satisfeito| Approve["Aprovar spec<br/>status: approved"]
+    end
+
+    subgraph BATCH ["2 — Implementacao"]
+        Approve --> StartBatch["/start-batch"]
+        StartBatch --> CheckDeps{"depends_on<br/>estao done?"}
+        CheckDeps -->|nao| Blocked([Aguardar specs<br/>dependentes])
+        CheckDeps -->|sim| InProgress["status: in-progress<br/>todo.md criado"]
+        InProgress --> ReviewLessons["Revisar lessons.md"]
+        ReviewLessons --> Implement["Implementar<br/>seguindo checklist"]
+        Implement -->|usa| Skills["Skills:<br/>new-entity / new-port / new-adapter"]
+        Skills --> Implement
+        Implement --> MarkProgress["Marcar progresso<br/>no todo.md"]
+        MarkProgress -->|proxima tarefa| Implement
+        MarkProgress -->|tudo [x]| CodeReview
+    end
+
+    subgraph REVIEW ["3 — Revisao"]
+        CodeReview["code-reviewer<br/>(subagente isolado)"]
+        CodeReview --> ReviewResult{"Resultado"}
+        ReviewResult -->|violacoes| FixIssues["Corrigir violacoes"]
+        FixIssues --> CodeReview
+        ReviewResult -->|aprovado| Done
+    end
+
+    subgraph DONE ["4 — Finalizacao"]
+        Done["/done"] --> Verify["make clean-py<br/>make security<br/>make lint<br/>make test"]
+        Verify -->|falhou| FixVerify["Corrigir erros"]
+        FixVerify --> Verify
+        Verify -->|passou| SpecDone["status: done"]
+        SpecDone --> Lessons["Registrar licoes<br/>em lessons.md"]
+        Lessons --> Walkthrough["Gerar walkthrough"]
+        Walkthrough --> Cleanup["Remover todo.md"]
+    end
+
+    Cleanup --> UserGit([Usuario faz<br/>commit / push])
+
+    style SPEC fill:#e8f4fd,stroke:#2196f3
+    style BATCH fill:#fff3e0,stroke:#ff9800
+    style REVIEW fill:#fce4ec,stroke:#e91e63
+    style DONE fill:#e8f5e9,stroke:#4caf50
+    style Start fill:#f3e5f5,stroke:#9c27b0
+    style UserGit fill:#f3e5f5,stroke:#9c27b0
+    style Blocked fill:#ffebee,stroke:#f44336
+```
 
 ## Estrutura do `.claude/`
 
