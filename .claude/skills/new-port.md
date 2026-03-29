@@ -2,18 +2,11 @@
 
 Cria uma interface (port) no domínio — contrato abstrato que define o que o sistema precisa, sem dizer como.
 
-## Decidir o tipo
-
-| Tipo | Quando usar | Pasta |
-|------|-------------|-------|
-| **Inbound** | Define como o mundo externo aciona o sistema (interface de use case) | `domain/ports/inbound/` |
-| **Outbound** | Define como o sistema acessa recursos externos (repo, gateway, storage) | `domain/ports/outbound/` |
-
 ## Checklist
 
 ### 1. Criar o Port
 
-Arquivo: `src/domain/ports/{inbound|outbound}/{nome_port}.py`
+Arquivo: `src/domain/ports/outbound/{nome_port}.py`
 
 ```python
 # src/domain/ports/outbound/{nome}_repository.py
@@ -61,7 +54,7 @@ class {Nome}Repository(ABC):
 
 ### 3. Exportar no `__init__.py`
 
-Arquivo: `src/domain/ports/{inbound|outbound}/__init__.py`
+Arquivo: `src/domain/ports/outbound/__init__.py`
 
 ```python
 from .{nome}_repository import {Nome}Repository

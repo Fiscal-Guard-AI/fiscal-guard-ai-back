@@ -104,7 +104,7 @@ Spec (definicao) → Aprovacao → Batch (implementacao) → Verificacao → Don
 
 **Skills** — o agente le e executa no contexto atual (mantem contexto do batch):
 - `new-entity` → entity + testes unitarios
-- `new-port` → interface ABC inbound/outbound
+- `new-port` → interface ABC outbound (repository, gateway, client)
 - `new-adapter` → adapter concreto + schema + registro no container + testes
 
 **Agents** — delegacao para subagente isolado (contexto fresco):

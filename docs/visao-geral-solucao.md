@@ -86,7 +86,6 @@ src/
 │   │   ├── download_url_event.py
 │   │   └── download_extract_sources.py
 │   ├── ports/                       # Interfaces / abstrações (Ports)
-│   │   ├── inbound/                 # Ports de entrada (use cases interfaces)
 │   │   └── outbound/               # Ports de saída (repositories, gateways)
 │   └── exceptions/                  # Exceções de domínio
 │
