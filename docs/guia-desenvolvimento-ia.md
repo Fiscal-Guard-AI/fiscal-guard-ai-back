@@ -281,13 +281,13 @@ infra --> adapters, domain, use_cases
 
 | Componente | Convencao | Exemplo |
 |------------|-----------|---------|
-| Entity | PascalCase, sem sufixo | `Event` |
-| Port (repo) | `{Entity}Repository` | `EventRepository` |
-| Port (gateway) | `{Servico}Gateway` | `StorageGateway` |
+| Entity | PascalCase, sem sufixo | `DownloadConfig`, `UploadFileEvent`, `DownloadUrlEvent` |
+| Port (repo) | `{Entity}Repository` | `ConfigRepository`, `UploadFileEventRepository` |
+| Port (gateway) | `{Servico}Gateway` | `StorageGateway`, `QueueGateway` |
 | Port (client) | `{API}Client` | `TransparenciaClient` |
-| Adapter | prefixo de tecnologia | `PostgresEventRepository` |
-| ORM Model | sufixo `Model` | `EventModel` |
-| Schema | sufixo descritivo | `EventMessage` |
+| Adapter | prefixo de tecnologia | `PostgresConfigRepository`, `PostgresDownloadUrlEventRepository` |
+| ORM Model | sufixo `Model` | `DownloadConfigModel`, `DownloadUrlEventModel` |
+| Schema | sufixo descritivo | `ConfigDispatchMessage`, `EventMessage` |
 
 ---
 
@@ -296,22 +296,30 @@ infra --> adapters, domain, use_cases
 ### Entity (dominio puro)
 
 ```python
-# src/domain/entities/event.py
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
+# src/domain/entities/download_url_event.py
+from dataclasses import dataclass
+from datetime import datetime
 
-from src.domain.exceptions.event_exceptions import InvalidEventStatusError
+from src.domain.exceptions.domain_exceptions import InvalidEventStatusError
 
-VALID_STATUSES = frozenset({"pending", "processing", "done", "failed"})
+VALID_STATUSES = frozenset({"PENDING", "PROCESSING", "DONE", "FAILED", "REQUEUE"})
 
 @dataclass
-class Event:
-    id: str
-    url: str
+class DownloadUrlEvent:
+    id: int | None
+    config_id: int
     status: str
-    source_type: str
-    page: int | None = None
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    page: int
+    params: dict
+    table_name: str
+    total_pages: int | None
+    headers: dict
+    correlation_id: str
+    s3_key: str | None = None
+    error_message: str | None = None
+    retry_count: int = 0
+    processed_at: datetime | None = None
+    created_at: datetime | None = None
     updated_at: datetime | None = None
 
     def __post_init__(self) -> None:
@@ -320,10 +328,22 @@ class Event:
 
     @property
     def is_pending(self) -> bool:
-        return self.status == "pending"
+        return self.status == "PENDING"
+
+    @property
+    def has_next_page(self) -> bool:
+        return self.total_pages is None or self.page < self.total_pages
+
+    def next_page_event(self) -> "DownloadUrlEvent":
+        return DownloadUrlEvent(
+            id=None, config_id=self.config_id, status="PENDING",
+            page=self.page + 1, params=self.params, table_name=self.table_name,
+            total_pages=self.total_pages, headers=self.headers,
+            correlation_id=self.correlation_id,
+        )
 
     def mark_processing(self) -> None:
-        self._transition_to("processing")
+        self._transition_to("PROCESSING")
 ```
 
 **Regras:**
@@ -335,20 +355,23 @@ class Event:
 ### Port (interface abstrata)
 
 ```python
-# src/domain/ports/outbound/event_repository.py
+# src/domain/ports/outbound/download_url_event_repository.py
 from abc import ABC, abstractmethod
-from src.domain.entities.event import Event
+from src.domain.entities.download_url_event import DownloadUrlEvent
 
 
-class EventRepository(ABC):
+class DownloadUrlEventRepository(ABC):
     @abstractmethod
-    async def find_by_id(self, id: str) -> Event | None: ...
-
-    @abstractmethod
-    async def find_pending(self) -> list[Event]: ...
+    async def find_by_id(self, id: int) -> DownloadUrlEvent | None: ...
 
     @abstractmethod
-    async def save(self, event: Event) -> None: ...
+    async def find_pending(self) -> list[DownloadUrlEvent]: ...
+
+    @abstractmethod
+    async def save(self, event: DownloadUrlEvent) -> None: ...
+
+    @abstractmethod
+    async def update_status(self, id: int, status: str) -> None: ...
 ```
 
 **Regras:**
@@ -359,31 +382,43 @@ class EventRepository(ABC):
 ### Adapter (implementacao concreta)
 
 ```python
-# src/adapters/outbound/repositories/postgres_event_repository.py
-from src.domain.entities.event import Event
-from src.domain.ports.outbound.event_repository import EventRepository
-from src.infra.database.models.event_model import EventModel
+# src/adapters/outbound/repositories/postgres_download_url_event_repository.py
+from src.domain.entities.download_url_event import DownloadUrlEvent
+from src.domain.ports.outbound.download_url_event_repository import DownloadUrlEventRepository
+from src.infra.database.models.download_url_event_model import DownloadUrlEventModel
 
 
-class PostgresEventRepository(EventRepository):
+class PostgresDownloadUrlEventRepository(DownloadUrlEventRepository):
     def __init__(self, session_factory):
         self._session_factory = session_factory
 
-    async def find_by_id(self, id: str) -> Event | None:
+    async def find_by_id(self, id: int) -> DownloadUrlEvent | None:
         async with self._session_factory() as session:
-            model = await session.get(EventModel, id)
+            model = await session.get(DownloadUrlEventModel, id)
             return self._to_entity(model) if model else None
 
-    async def save(self, event: Event) -> None:
+    async def save(self, event: DownloadUrlEvent) -> None:
         async with self._session_factory() as session:
             session.add(self._to_model(event))
             await session.commit()
 
-    def _to_entity(self, model: EventModel) -> Event:
-        return Event(id=model.id, url=model.url, status=model.status, ...)
+    def _to_entity(self, model: DownloadUrlEventModel) -> DownloadUrlEvent:
+        return DownloadUrlEvent(
+            id=model.download_url_event_id, config_id=model.download_config_id,
+            status=model.status, page=model.page, params=model.params,
+            table_name=model.table_name, total_pages=model.total_pages,
+            headers=model.headers, correlation_id=model.correlation_id,
+            s3_key=model.s3_key, error_message=model.error_message,
+            retry_count=model.retry_count,
+        )
 
-    def _to_model(self, entity: Event) -> EventModel:
-        return EventModel(id=entity.id, url=entity.url, status=entity.status, ...)
+    def _to_model(self, entity: DownloadUrlEvent) -> DownloadUrlEventModel:
+        return DownloadUrlEventModel(
+            download_config_id=entity.config_id, status=entity.status,
+            page=entity.page, params=entity.params, table_name=entity.table_name,
+            total_pages=entity.total_pages, headers=entity.headers,
+            correlation_id=entity.correlation_id,
+        )
 ```
 
 **Regras:**
@@ -395,32 +430,66 @@ class PostgresEventRepository(EventRepository):
 ### Testes (entity — sem mocks)
 
 ```python
-# tests/unit/domain/entities/test_event.py
+# tests/unit/domain/entities/test_download_url_event.py
 import pytest
-from src.domain.entities.event import Event
-from src.domain.exceptions.event_exceptions import InvalidEventStatusError
+from src.domain.entities.download_url_event import DownloadUrlEvent
+from src.domain.exceptions.domain_exceptions import InvalidEventStatusError
 
 
-class TestEventCreation:
+class TestDownloadUrlEventCreation:
     def test_create_valid_event(self):
-        event = Event(id="1", url="https://example.com", status="pending", source_type="file")
-        assert event.status == "pending"
+        event = DownloadUrlEvent(
+            id=None, config_id=1, status="PENDING", page=1,
+            params={}, table_name="contratos_2024", total_pages=None,
+            headers={}, correlation_id="abc-123",
+        )
+        assert event.status == "PENDING"
 
     def test_invalid_status_raises(self):
         with pytest.raises(InvalidEventStatusError):
-            Event(id="1", url="https://example.com", status="unknown", source_type="file")
+            DownloadUrlEvent(
+                id=None, config_id=1, status="INVALID", page=1,
+                params={}, table_name="contratos_2024", total_pages=None,
+                headers={}, correlation_id="abc-123",
+            )
 
 
-class TestStatusTransitions:
-    def test_mark_processing(self):
-        event = Event(id="1", url="https://example.com", status="pending", source_type="file")
-        event.mark_processing()
-        assert event.status == "processing"
+class TestPagination:
+    def test_has_next_page_when_total_unknown(self):
+        event = DownloadUrlEvent(
+            id=1, config_id=1, status="DONE", page=3,
+            params={}, table_name="contratos_2024", total_pages=None,
+            headers={}, correlation_id="abc-123",
+        )
+        assert event.has_next_page is True
 
-    def test_invalid_transition(self):
-        event = Event(id="1", url="https://example.com", status="pending", source_type="file")
-        with pytest.raises(InvalidEventStatusError):
-            event.mark_done()  # pending -> done nao e permitido
+    def test_has_next_page_when_not_last(self):
+        event = DownloadUrlEvent(
+            id=1, config_id=1, status="DONE", page=2,
+            params={}, table_name="contratos_2024", total_pages=5,
+            headers={}, correlation_id="abc-123",
+        )
+        assert event.has_next_page is True
+
+    def test_no_next_page_when_last(self):
+        event = DownloadUrlEvent(
+            id=1, config_id=1, status="DONE", page=5,
+            params={}, table_name="contratos_2024", total_pages=5,
+            headers={}, correlation_id="abc-123",
+        )
+        assert event.has_next_page is False
+
+    def test_next_page_event(self):
+        event = DownloadUrlEvent(
+            id=1, config_id=1, status="DONE", page=2,
+            params={"limit": 100}, table_name="contratos_2024", total_pages=5,
+            headers={}, correlation_id="abc-123",
+        )
+        next_event = event.next_page_event()
+        assert next_event.page == 3
+        assert next_event.status == "PENDING"
+        assert next_event.id is None
+        assert next_event.correlation_id == "abc-123"
 ```
 
 ---

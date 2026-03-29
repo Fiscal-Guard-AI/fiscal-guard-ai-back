@@ -6,10 +6,12 @@ Serviço de processamento de dados que consome e processa dados do governo feder
 
 ### O que o sistema faz
 
-- Consome e processa dados do governo federal via APIs REST e arquivos CSV
-- Armazena dados em PostgreSQL e exporta para S3 em formato Parquet
-- Controle de duplicatas via hash de 64 bytes
-- Processamento paginado com controle de estado
+- Consome e processa dados do governo federal via APIs REST, arquivos CSV, ZIP e XLSX
+- Armazena dados em PostgreSQL com organização por período (ano ou mês)
+- Exporta para S3 em formato Parquet com metadados
+- Controle de duplicatas via hash de 64 bytes e verificação de última modificação
+- Processamento paginado com controle de estado (APIs)
+- Extração de múltiplos arquivos/abas de fontes ZIP e XLSX
 - Rate limiting via Token Bucket (1 req/s público | 700 req/s autenticado)
 
 ### O que o sistema NÃO faz
@@ -22,11 +24,16 @@ Serviço de processamento de dados que consome e processa dados do governo feder
 
 O serviço é composto por três processos principais:
 
-- **CronJob**: Inicia o processo de verificação dos arquivos a serem baixados. Para cada processo, recebe via tabela de eventos: URL, periodicidade, última data de modificação.
+- **CronJob**: Verifica periodicamente as configurações de download (`download_config`) com execução pendente. Para cada config ativa cujo `next_run_at` foi atingido, publica o `config_id` na fila de dispatch (SQS). Não cria eventos diretamente.
 
-- **Worker**: Recebe eventos pendentes, lê a tabela de eventos pendentes para identificar se é arquivo ou API. Para arquivos: realiza download, gera um hash único de 64 bytes, salva como Parquet com metadados apontando para o arquivo original, e armazena o conteúdo em tabela PostgreSQL. Para APIs: dispara chamadas, captura conteúdo e salva no banco. Para endpoints paginados, a tabela de eventos inclui um campo para o último ID pendente; o worker verifica novas páginas e gera novos eventos na fila. Por fim, os dados do banco são carregados e salvos no S3 com metadados e hash em formato Parquet.
+- **Worker**: Consome mensagens de duas filas SQS:
+  - **Fila de dispatch** (config): recebe `config_id`, carrega a configuração e roteia por `source_type`:
+    - **API**: cria um `download_url_event` (página 1, status PENDING) e publica na fila de eventos. A cada página processada, o worker salva o conteúdo na tabela de destino (`table_name`), verifica se há próxima página e cria novo evento. Quando não há mais páginas, gera Parquet e salva no S3 via `upload_file_events`.
+    - **CSV**: faz download do arquivo, gera hash, verifica deduplicação (`last_hash`), salva no banco na tabela de destino (`destiny_name` + período) e cria `upload_file_event` para conversão em Parquet e upload ao S3.
+    - **ZIP/XLSX**: faz download do arquivo, consulta `download_extract_sources` para identificar arquivos (ZIP) ou abas (XLSX) a extrair. Para cada source: extrai conteúdo, salva no banco e cria `upload_file_event`.
+  - **Fila de eventos**: processa `download_url_events` pendentes (paginação de APIs) e `upload_file_events` pendentes (geração de Parquet e upload S3).
 
-- **API**: Gerencia novas configurações, como instruções para novos downloads.
+- **API**: Gerencia configurações de download (CRUD), consulta eventos e permite reprocessamento.
 
 ## Arquitetura
 
@@ -63,9 +70,9 @@ O projeto segue o padrão **Clean Architecture** em Python, garantindo baixo aco
 
 | Camada | Responsabilidade | Exemplos |
 |--------|-----------------|----------|
-| **Domínio** | Entidades, interfaces (ports) e regras de negócio puras | `Event`, `Config`, `EventRepository` (interface) |
-| **Casos de Uso** | Orquestração das regras de negócio da aplicação | `ProcessEventUseCase`, `ScheduleDownloadUseCase` |
-| **Adaptadores** | Implementações concretas das interfaces do domínio | `PostgresEventRepository`, `SQSQueueGateway`, `S3StorageGateway` |
+| **Domínio** | Entidades, interfaces (ports) e regras de negócio puras | `DownloadConfig`, `UploadFileEvent`, `DownloadUrlEvent`, `DownloadExtractSources`, `ConfigRepository` (interface) |
+| **Casos de Uso** | Orquestração das regras de negócio da aplicação | `ProcessEventUseCase`, `DispatchDownloadUseCase`, `ScheduleDownloadUseCase` |
+| **Adaptadores** | Implementações concretas das interfaces do domínio | `PostgresConfigRepository`, `PostgresUploadFileEventRepository`, `SQSQueueGateway`, `S3StorageGateway` |
 | **Infraestrutura** | Frameworks, drivers e configuração externa | FastAPI, SQLAlchemy, boto3, Redis client, Docker |
 
 ### Estrutura de diretórios
@@ -74,6 +81,10 @@ O projeto segue o padrão **Clean Architecture** em Python, garantindo baixo aco
 src/
 ├── domain/                          # Camada de Domínio (núcleo)
 │   ├── entities/                    # Entidades e Value Objects
+│   │   ├── download_config.py
+│   │   ├── upload_file_event.py
+│   │   ├── download_url_event.py
+│   │   └── download_extract_sources.py
 │   ├── ports/                       # Interfaces / abstrações (Ports)
 │   │   ├── inbound/                 # Ports de entrada (use cases interfaces)
 │   │   └── outbound/               # Ports de saída (repositories, gateways)
@@ -81,7 +92,10 @@ src/
 │
 ├── use_cases/                       # Camada de Casos de Uso
 │   ├── process_event.py
+│   ├── dispatch_download.py
 │   ├── schedule_download.py
+│   ├── configure_download.py
+│   ├── reprocess_event.py
 │   └── ...
 │
 ├── adapters/                        # Camada de Adaptadores
@@ -127,10 +141,10 @@ src/
 
 | Processo | Localização | Descrição |
 |----------|------------|-----------|
-| **CronJob** | `adapters/inbound/cronjobs/` | Agendadores que disparam verificação de downloads pendentes |
-| **Consumer (Worker)** | `adapters/inbound/consumers/` | Listeners de fila SQS que processam eventos |
+| **CronJob** | `adapters/inbound/cronjobs/` | Agendadores que publicam config_id na fila de dispatch |
+| **Consumer (Worker)** | `adapters/inbound/consumers/` | Listeners de filas SQS: dispatch (config) e eventos (download/upload) |
 | **API** | `adapters/inbound/api/` | Endpoints REST internos (FastAPI) |
-| **Storage** | `adapters/outbound/storage/` | Download de CSVs, upload de Parquet para S3 |
+| **Storage** | `adapters/outbound/storage/` | Download de arquivos, upload de Parquet para S3 |
 | **WebCrawler** | `adapters/outbound/crawler/` | Raspagem de dados de páginas web |
 | **API Clients** | `adapters/outbound/api_clients/` | Chamadas às APIs do Portal da Transparência e Datalake |
 
@@ -141,42 +155,112 @@ Logging em formato **JSON estruturado** em todas as camadas, facilitando:
 - Integração com ferramentas de monitoramento
 - Correlação entre processos (CronJob, Worker, API) via `correlation_id`
 
-### Diagrama de fluxo
+### Diagrama de fluxo geral
 
 ```mermaid
 flowchart TB
-    cron["CronJob"] --> configService["Config Service"]
-    api["API Interna"] --> configService
+    cron["CronJob"] -- "busca configs due" --> configTable[("download_config")]
+    configTable -- "config_id" --> dispatchQueue["SQS - Fila Dispatch"]
+    api["API Interna"] -- "CRUD configs" --> configTable
 
-    configService --> tableConfig[("Table Config")]
-    configService --> eventDispatcher["Event Dispatcher"]
-    eventDispatcher --> tableEvents[("Table Events")]
-    eventDispatcher -- "envia mensagem" --> queue["SQS Queue"]
+    dispatchQueue -- "consome config_id" --> dispatcher["DispatchDownloadUseCase"]
+    dispatcher -- "carrega config" --> configTable
 
-    queue -- "consome evento" --> worker["Worker"]
-    worker --> processor["Processor"]
+    dispatcher -- "source_type = API" --> apiFlow
+    dispatcher -- "source_type = CSV" --> csvFlow
+    dispatcher -- "source_type = ZIP/XLSX" --> zipFlow
 
-    processor -- "carrega evento pendente" --> tableEvents
-    processor --> rateLimiter["Rate Limiter - Token Bucket"]
-    rateLimiter --> cache[("Redis Cache")]
+    subgraph apiFlow ["Fluxo API"]
+        createUrlEvent["Cria download_url_event\n(page=1)"] --> eventQueue["SQS - Fila Eventos"]
+        eventQueue --> processEvent["ProcessEventUseCase"]
+        processEvent --> rateLimiter["Rate Limiter"]
+        rateLimiter --> cache[("Redis")]
+        rateLimiter --> apiGov["API Governo"]
+        apiGov -- "salva response" --> postgres[("PostgreSQL\ntable_name")]
+        postgres --> nextPage{"Próxima página?"}
+        nextPage -- "Sim: novo evento" --> eventQueue
+        nextPage -- "Não" --> uploadFromApi["Cria upload_file_event"]
+    end
 
-    rateLimiter --> decision{"Limite atingido?"}
-    decision -- "Sim: requeue com TTL" --> queue
-    decision -- "Não: processa" --> apiGov["APIs Governo Federal"]
+    subgraph csvFlow ["Fluxo CSV"]
+        downloadCsv["Download arquivo"] --> hashCheck["Hash + Deduplicação"]
+        hashCheck --> saveCsv[("PostgreSQL\ndestiny_name + período")]
+        saveCsv --> uploadCsv["Cria upload_file_event"]
+    end
 
-    apiGov -- "salva dados" --> postgres[("PostgreSQL")]
-    postgres --> pagination{"Próxima página?"}
-    pagination -- "Sim" --> tableEvents
-    pagination -- "Sim: novo evento" --> queue
-    pagination -- "Não" --> s3["S3 - Parquet + Metadados"]
-    s3 --> done["Fim do Processamento"]
+    subgraph zipFlow ["Fluxo ZIP / XLSX"]
+        downloadZip["Download arquivo"] --> extractSources[("download_extract_sources")]
+        extractSources --> extractLoop["Para cada source:\nextrair + salvar no banco"]
+        extractLoop --> uploadZip["Cria upload_file_event\npor source"]
+    end
+
+    uploadFromApi --> uploadQueue["SQS - Fila Upload"]
+    uploadCsv --> uploadQueue
+    uploadZip --> uploadQueue
+
+    uploadQueue --> processUpload["Gera Parquet + Upload"]
+    processUpload --> s3["S3 - Parquet + Metadados"]
+    s3 --> done["Fim"]
+```
+
+### Diagrama de modelo de dados
+
+```mermaid
+erDiagram
+    download_config {
+        bigserial download_config_id PK
+        varchar source_name UK
+        varchar destiny_name UK
+        source_type source_type
+        period_type period_type
+        date period
+        text url
+        varchar cron_expression
+        boolean is_active
+        timestamptz next_run_at
+        varchar last_hash
+        timestamp last_modification
+    }
+
+    download_extract_sources {
+        varchar destiny_name PK
+        bigint download_config_id FK
+        varchar source_name
+    }
+
+    upload_file_events {
+        bigserial upload_file_event_id PK
+        bigint download_config_id FK
+        event_status status
+        file_origin origin
+        char content_hash
+        varchar correlation_id
+        text s3_key
+        varchar table_name
+    }
+
+    download_url_events {
+        bigserial download_url_event_id PK
+        bigint download_config_id FK
+        event_status status
+        integer page
+        varchar table_name
+        integer total_pages
+        varchar correlation_id
+        text s3_key
+    }
+
+    download_config ||--o{ download_extract_sources : "ZIP/XLSX sources"
+    download_config ||--o{ upload_file_events : "file uploads"
+    download_config ||--o{ download_url_events : "API pagination"
 ```
 
 ## Estratégia de Desenvolvimento
 
 - Utilização de interfaces e mocks para independência da infraestrutura durante desenvolvimento e testes
-- Consumo de dados via APIs REST com execução diária em horários fixos
-- Banco de dados: a estrutura PostgreSQL e modelagem de dados serão finalizadas durante o desenvolvimento
+- Consumo de dados via APIs REST, arquivos CSV, ZIP e XLSX com execução periódica configurável por cron
+- Banco de dados: schemas definidos em `scripts/flyway/*.sql`
+- Organização de dados por período (ano ou mês) para facilitar particionamento e consultas
 
 ## Desafios
 
