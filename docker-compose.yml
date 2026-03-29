@@ -66,6 +66,7 @@ services:
       FLYWAY_USER: fiscal_guard
       FLYWAY_PASSWORD: fiscal_guard
       FLYWAY_SCHEMAS: public
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
       FLYWAY_BASELINE_ON_MIGRATE: "true"
     volumes:
       - ./scripts/flyway:/flyway/sql
