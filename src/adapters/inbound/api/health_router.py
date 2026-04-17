@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
 from infra.config.settings import Settings, get_settings
 
 router = APIRouter(tags=["Infra"])

@@ -1,5 +1,6 @@
 from enum import StrEnum
 
+
 class SourceType(StrEnum):
     API = "API"
     CSV = "CSV"
