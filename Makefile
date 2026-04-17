@@ -16,6 +16,10 @@ PROFILE_APP := $(COMPOSE) --profile app
 # Prevents __pycache__ and .pyc generation in local make executions
 export PYTHONDONTWRITEBYTECODE := 1
 
+# Detect python and pip (local .venv has priority)
+PYTHON := $(shell [ -d .venv ] && echo .venv/bin/python3 || echo python3)
+PIP    := $(shell [ -d .venv ] && echo .venv/bin/pip || echo pip)
+
 # ── Help ──────────────────────────────────────────────────────────────────────
 
 .PHONY: help
@@ -106,45 +110,45 @@ api-shell: ## Opens shell inside the API container
 
 .PHONY: install
 install: ## Installs project dependencies (requirements.txt)
-	pip install -r requirements.txt
+	$(PIP) install -r requirements.txt
 
 .PHONY: install-dev
 install-dev: ## Installs dev dependencies (lint, test, security)
-	pip install -r requirements-dev.txt
+	$(PIP) install -r requirements-dev.txt
 
 # ── Lint & Test ───────────────────────────────────────────────────────────────
 
 .PHONY: lint
 lint: ## Runs ruff linter and format check
-	python -m ruff check .
-	python -m ruff format --check .
+	$(PYTHON) -m ruff check .
+	$(PYTHON) -m ruff format --check .
 
 .PHONY: lint-fix
 lint-fix: ## Runs ruff linter and formatter with auto-fix
-	python -m ruff check --fix .
-	python -m ruff format .
+	$(PYTHON) -m ruff check --fix .
+	$(PYTHON) -m ruff format .
 
 .PHONY: test
 test: ## Runs unit tests with coverage
-	export PYTHONPATH=src python -m pytest tests/ -v --cov=src --cov-report=term
+	export PYTHONPATH=src && $(PYTHON) -m pytest tests/ -v --cov=src --cov-report=term
 
 .PHONY: test-no-cov
 test-no-cov: ## Runs unit tests
-	export PYTHONPATH=src && .venv/bin/python3 -m pytest tests/ -v
+	export PYTHONPATH=src && $(PYTHON) -m pytest tests/ -v
 
 .PHONY: security
 security: ## Runs bandit security analysis
-	python -m bandit -r src/ -c pyproject.toml
+	$(PYTHON) -m bandit -r src/ -c pyproject.toml
 
 .PHONY: clean-py
 clean-py: ## Removes __pycache__ and .pyc files from the project
-	python -c "import shutil, pathlib; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__')]"
+	$(PYTHON) -c "import shutil, pathlib; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__')]"
 
 # ── Local execution (Python directly, without Docker) ─────────────────────────
 
 .PHONY: run-api
 run-api: install ## Runs the API locally against Docker infra (ensures deps are installed)
-	export PYTHONPATH=src && python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+	export PYTHONPATH=src && $(PYTHON) -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 # ── Individual logs ────────────────────────────────────────────────────────────
 
