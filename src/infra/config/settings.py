@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 from pydantic import computed_field, model_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -42,8 +42,7 @@ class Settings(BaseSettings):
             self.aws_endpoint_url = "http://localhost:4566"
         return self
 
-    class Config:
-        case_sensitive = False
+    model_config = SettingsConfigDict(case_sensitive=False)
 
 
 @lru_cache  # singleton instance

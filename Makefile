@@ -126,7 +126,11 @@ lint-fix: ## Runs ruff linter and formatter with auto-fix
 
 .PHONY: test
 test: ## Runs unit tests with coverage
-	python -m pytest tests/ -v --cov=src --cov-report=term
+	export PYTHONPATH=src python -m pytest tests/ -v --cov=src --cov-report=term
+
+.PHONY: test-no-cov
+test-no-cov: ## Runs unit tests
+	export PYTHONPATH=src && .venv/bin/python3 -m pytest tests/ -v
 
 .PHONY: security
 security: ## Runs bandit security analysis
@@ -140,7 +144,7 @@ clean-py: ## Removes __pycache__ and .pyc files from the project
 
 .PHONY: run-api
 run-api: install ## Runs the API locally against Docker infra (ensures deps are installed)
-	python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+	export PYTHONPATH=src && python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 # ── Individual logs ────────────────────────────────────────────────────────────
 
