@@ -1,3 +1,3 @@
-from .event import Event
+from .download_config import DownloadConfig
 
-__all__ = ["Event"]
+__all__ = ["DownloadConfig"]
